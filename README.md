@@ -1,125 +1,340 @@
 # Finance Management System (Ghana)
 
-One codebase, **two fully separate deployments and databases**:
+A dual-company finance management system built on one codebase with two fully separate deployments and Supabase databases.
+
+## 1. Project overview
 
 | | Resilience Estate Ltd | Ash Elite Enterprise / Block Factory |
 |---|---|---|
-| Supabase project | its own | its own |
+| Supabase project | `sedddarwudrsngyazifr` | `yyqzrctwbgqxhapzattj` |
 | `NEXT_PUBLIC_COMPANY` | `resilience` | `ashelite` |
-| Branding | supplied logo, deep green / gold | supplied logo, burgundy / gold / charcoal |
-| Operations | projects, properties, sales, rentals | materials, production batches, finished blocks, equipment |
+| Branding | Deep green and gold | Burgundy, gold and charcoal |
+| Operations | Projects, properties, sales and rentals | Materials, production batches, finished blocks and equipment |
+| Deployment | Pending | Pending |
+| Accountant account | Not created | Not created |
 
-The accountant is the only application user. Management receives exported PDF/XLSX/CSV reports only. There is no `company_id` anywhere: isolation is by separate database, Auth users, storage, secrets, audit log and backups. To work in the other company the accountant logs out and signs in to the other deployment with different credentials.
+Each company has its own database, Auth users, storage, secrets, audit records and backups.
 
-Financial statements come at three levels of detail (summary, grouped, detailed) with comparative periods; see [`docs/REPORTS.md`](docs/REPORTS.md).
+There is no `company_id` in the application database. The accountant uses separate credentials for each company and must sign out before accessing the other deployment.
 
-**Read first:** [`docs/STATUS.md`](docs/STATUS.md) says exactly what was built, what was tested, and what was *not* verified. [`docs/`](docs) also holds architecture, database, security, payroll, and backup/recovery guides.
+Management does not receive application accounts. The accountant exports PDF, XLSX and CSV reports for management.
 
-## Repository layout
+Financial statements support summary, grouped and detailed views with comparative periods. See [docs/REPORTS.md](docs/REPORTS.md).
 
+## 2. Current project status
+
+### Completed and verified
+
+- Both Supabase projects created.
+- Nine migrations applied to each project.
+- Resilience database has 51 public application tables.
+- Ash Elite database has 57 public application tables.
+- No seed data has been applied.
+- Email authentication configured for both projects.
+- Public sign-ups disabled.
+- Email confirmation enabled.
+- TOTP MFA enabled.
+- Password requirements configured.
+- Private `documents` and `exports` storage buckets configured.
+- Local environment files created for both companies.
+- Both local login pages tested successfully.
+- ESLint passed.
+- TypeScript checks passed.
+- 88 automated tests passed.
+- Resilience production build passed.
+- Ash Elite production build passed.
+- Git repository created and pushed to GitHub.
+
+### Pending
+
+- Configure SMTP for both Supabase projects.
+- Create the two accountant accounts.
+- Configure and deploy both Vercel projects.
+- Configure production authentication URLs.
+- Test login and MFA on both live deployments.
+- Run live company isolation verification.
+- Configure a suitable backup and recovery process.
+- Test backup restoration.
+
+See [docs/STATUS.md](docs/STATUS.md) for the detailed implementation status and limitations.
+
+## 3. Repository structure
+
+```text
+src/                              Next.js 15 application
+supabase/migrations/common/       Shared database schema
+supabase/migrations/resilience/   Resilience-specific schema
+supabase/migrations/ashelite/     Ash Elite-specific schema
+supabase/seed/                    Optional initial data
+supabase/config.toml              Supabase CLI configuration
+scripts/                          Database and administration scripts
+tests/db/                         Database tests using PGlite
+tests/unit/                       Unit tests
+public/brand/                     Company logos and login images
+docs/                             Technical documentation
+.env.example                      General environment template
+.env.resilience.example           Resilience environment template
+.env.ashelite.example             Ash Elite environment template
 ```
-src/                     Next.js 15 (App Router, TypeScript) application
-supabase/migrations/common/      0001-0005 shared schema, ledger, AR/AP, assets, payroll (applied to BOTH companies)
-supabase/migrations/resilience/  0100 estate operations (Resilience only)
-supabase/migrations/ashelite/    0100 factory operations (Ash Elite only)
-supabase/seed/           safe, idempotent seeds (chart of accounts, mappings, fiscal year, components, PLACEHOLDER statutory rules)
-supabase/config.toml     CLI/auth configuration template
-scripts/                 apply-migrations, prepare-supabase-dir, create-accountant, verify-isolation, backup, restore-test, validate
-tests/db/                database tests (run on in-process PostgreSQL via PGlite, as the `authenticated` role with RLS on)
-tests/unit/              unit tests (exports, report registry vs SQL, security hygiene)
-public/brand/            supplied logos (cropped/optimised)      docs/reference/  supplied UI reference images
-.env.resilience.example  .env.ashelite.example  .env.example     placeholders only
-```
 
-## Prerequisites
+## 4. Prerequisites
 
-Node 20+ (tested on 22), npm, a Supabase account (two projects), `psql`/`pg_dump` for backups, and a host that can run two Next.js deployments (Vercel, Cloudflare, a VM...).
+- Node.js 20 or later.
+- npm.
+- Two Supabase projects.
+- Git and GitHub.
+- A hosting provider supporting Next.js deployments.
+- `psql` and `pg_dump` for database backup operations.
 
-## 1. Create two Supabase projects
+The project was tested using Node.js 22.
 
-Create **two separate projects**, e.g. `fms-resilience` and `fms-ashelite`, in your preferred region. Use a different strong database password for each. Do not share anything between them.
+## 5. Local development
 
-## 2. Apply the schema to each project independently
-
-Either use the included runner (needs each project's *direct* Postgres connection string from Project Settings > Database):
+Install dependencies:
 
 ```bash
 npm ci
-SUPABASE_DB_URL='postgresql://postgres:***@db.<RESILIENCE-REF>.supabase.co:5432/postgres' npm run db:apply -- resilience --seed
-SUPABASE_DB_URL='postgresql://postgres:***@db.<ASHELITE-REF>.supabase.co:5432/postgres'    npm run db:apply -- ashelite --seed
+cp .env.resilience.example .env.resilience.local
+cp .env.ashelite.example .env.ashelite.local
 ```
 
-`npm run db:apply -- <company> --dry-run` prints the plan. The runner records applied files in `fms_admin.migrations`, is re-runnable, and **refuses to apply a company's schema to a database already bound to the other company**.
-
-Or use the Supabase CLI: `npm run db:prepare -- resilience` generates `build/resilience/supabase/` (timestamped migrations, `seed.sql`, `config.toml`); then `cd build/resilience && supabase link --project-ref <REF> && supabase db push`, and run `seed.sql` once in the SQL editor. Repeat for `ashelite`.
-
-## 3. Configure Auth, Storage and security (dashboard steps; cannot be automated here)
-
-For **each** project:
-
-1. Authentication > Providers > Email: **disable "Allow new users to sign up"**; keep email confirmation on.
-2. Authentication > Multi-factor: enable **TOTP**.
-3. Authentication > Policies: minimum password length 12, require upper/lower/digits/symbols; enable leaked-password protection if your plan has it.
-4. Authentication > Rate limits: keep sign-in limits tight (template in `supabase/config.toml`).
-5. Authentication > URL configuration: set Site URL to that company's deployed URL only.
-6. Authentication > SMTP: configure a sender for that company (password resets).
-7. Storage: confirm buckets `documents` and `exports` exist and are **not public** (created by migration 0004).
-8. Database > Backups: enable daily backups; enable **Point-in-Time Recovery** on paid plans. See `docs/BACKUP_RECOVERY.md`.
-9. Project Settings > API: copy the URL and **anon** key into that company's deployment env only. Keep the **service-role key** out of the web deployment entirely.
-
-## 4. Create each accountant (separate credentials per company)
+Start Resilience:
 
 ```bash
-SUPABASE_URL=https://<RESILIENCE-REF>.supabase.co SUPABASE_SERVICE_ROLE_KEY=*** \
-ACCOUNTANT_EMAIL=accountant.resilience@yourdomain.com ACCOUNTANT_PASSWORD='<12+ chars, unique>' \
-node scripts/create-accountant.mjs resilience "Full Name"
-# repeat with the Ash Elite project's URL/key, a different email and a different password
+npm run dev:resilience
 ```
 
-The script confirms the project is bound to the named company before creating anything. After first sign-in, enrol an authenticator app at `/security/mfa`.
+Open:
 
-## 5. Configure branding
+```text
+http://localhost:3001
+```
 
-Branding is automatic from `NEXT_PUBLIC_COMPANY`: logo, palette, login, navigation, PDFs and exports. To adjust colours or names edit `src/lib/company.ts`; to replace a logo, overwrite `public/brand/<company>-logo.png` (keep the file name). Legal name, TIN, address etc. are edited in-app at Settings > Company.
-
-## 6. Run locally
+Start Ash Elite:
 
 ```bash
-cp .env.resilience.example .env.local   # fill in Resilience URL + anon key
-npm run dev                              # or: npm run dev:resilience (port 3001)
-# second terminal / separate checkout:
-cp .env.ashelite.example .env.local      # fill in Ash Elite URL + anon key
+npm run dev:ashelite
 ```
 
-Use `npm run dev:resilience` and `npm run dev:ashelite` from **separate working copies** if you want both running at once, because both read `.env.local`. If a deployment's Supabase URL points at the other company's database the app shows a configuration error and refuses to operate.
+Open:
 
-## 7. Test and validate
+```text
+http://localhost:3002
+```
+
+Each script copies its company's local environment file into `.env.local` before starting Next.js.
+
+Use separate working copies if both applications need to run simultaneously. Both scripts use `.env.local`.
+
+Never commit local environment files or expose database passwords and service-role keys.
+
+## 6. Environment configuration
+
+Each deployment requires its own environment variables.
+
+| Variable | Purpose |
+|---|---|
+| `NEXT_PUBLIC_COMPANY` | `resilience` or `ashelite` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Company's Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Company's legacy anon key |
+| `NEXT_PUBLIC_OTHER_COMPANY_URL` | Optional link to the other deployment |
+| `REQUIRE_MFA` | `true` |
+
+`SUPABASE_DB_URL` is reserved for local database administration and migration operations.
+
+`SUPABASE_SERVICE_ROLE_KEY` is reserved for trusted server-side administration scripts. Never add it to Vercel environment variables or expose it to browser code.
+
+## 7. Accountant account creation
+
+Two separate accountant accounts are required.
+
+One account belongs to Resilience Estate Ltd. The other belongs to Ash Elite Enterprise.
+
+Accounts have not yet been created.
+
+The project includes:
+
+```text
+scripts/create-accountant.mjs
+```
+
+The script checks the target project's company binding before creating an account.
+
+Account creation requires the relevant company's Supabase URL and service-role key, plus a unique email and password.
+
+Use different credentials for both companies. Do not share credentials or commit them to GitHub.
+
+After the first sign-in, enrol an authenticator app through:
+
+```text
+/security/mfa
+```
+
+## 8. Authentication and security
+
+The following settings have been configured on both Supabase projects:
+
+- Email provider enabled.
+- Public sign-ups disabled.
+- Email confirmation enabled.
+- Secure email changes enabled.
+- TOTP MFA enabled.
+- Minimum password length of 12 characters.
+- Uppercase, lowercase, digits and symbols required.
+- Secure password changes enabled.
+- Current password required for password updates.
+- Private storage buckets.
+
+SMTP is not yet configured.
+
+Leaked-password protection is restricted by the current Supabase plan.
+
+Production authentication URLs must be updated after deployment.
+
+## 9. Validation and testing
+
+The following checks have passed:
+
+- ESLint.
+- TypeScript.
+- 88 automated tests across nine test files.
+- Resilience production build.
+- Ash Elite production build.
+
+Run:
 
 ```bash
-npm run validate     # lint + typecheck + all tests + production build for both companies
-npm run test:db      # database tests only (PGlite, no external services needed)
+npm run lint
+npm run typecheck
+npm test
 ```
 
-## 8. Deploy
-
-Create **two deployments** of this repository (e.g. two Vercel projects), each with its own environment variables from `.env.<company>.example` (`NEXT_PUBLIC_COMPANY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `REQUIRE_MFA=true`). `NEXT_PUBLIC_*` values are compiled in at build time, so each deployment builds for exactly one company. Serve each on its own domain over HTTPS. Never add the service-role key or DB URL to these deployments.
-
-## 9. Verify isolation (live)
+The command below runs the complete validation script, including production builds for both companies:
 
 ```bash
-RES_URL=... RES_ANON=... RES_EMAIL=... RES_PASSWORD=... ASH_URL=... ASH_ANON=... ASH_EMAIL=... ASH_PASSWORD=... npm run verify:isolation
+bash scripts/validate.sh
 ```
 
-It checks that each accountant can sign in only to their own company, that a session token from one project cannot read the other, that anonymous users cannot read ledgers, and that the documents bucket is not public. **This script requires your two live projects and has not been run by the author.**
+Note: `npm run validate` currently runs lint, typecheck, tests and one production build using the active environment. It does not automatically run both company builds.
 
-## 10. Test backup and recovery
+Database tests use PGlite and do not require external Supabase connections.
 
-Follow `docs/BACKUP_RECOVERY.md`: `scripts/backup.sh` per company, then `scripts/restore-test.sh` into a scratch database, which verifies the checksum and that the restored ledger balances.
+## 10. Deployment
 
-## Day-to-day flow (accountant)
+Two separate Vercel projects will be created from this repository.
 
-Set up accounts, cost centres, FX rates, bank accounts and opening balances (Settings; Transactions) > record invoices, bills, receipts and payments > import bank statements and reconcile > run monthly depreciation > run payroll (Payroll) > lock the period (Settings > Fiscal periods) > export reports for management (Reports).
+Both will use the `main` branch.
 
-## Important limitations
+### Resilience deployment
 
-See `docs/STATUS.md`. In particular: statutory PAYE/SSNIT values shipped in the seed are **unverified placeholders**; the system does **not** file returns or make payments; no void workflow for issued invoices/bills yet (use a reversal journal plus a new document); live Supabase behaviour has not been verified by the author.
+Configure:
+
+```text
+NEXT_PUBLIC_COMPANY=resilience
+NEXT_PUBLIC_SUPABASE_URL=<RESILIENCE_SUPABASE_URL>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<RESILIENCE_ANON_KEY>
+REQUIRE_MFA=true
+```
+
+### Ash Elite deployment
+
+Configure:
+
+```text
+NEXT_PUBLIC_COMPANY=ashelite
+NEXT_PUBLIC_SUPABASE_URL=<ASHELITE_SUPABASE_URL>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<ASHELITE_ANON_KEY>
+REQUIRE_MFA=true
+```
+
+Each deployment must have its own environment variables and production URL.
+
+Do not add `SUPABASE_DB_URL` or `SUPABASE_SERVICE_ROLE_KEY` to either deployment.
+
+`NEXT_PUBLIC_` variables are compiled into the application during the build process. Each deployment must therefore build for its own company.
+
+Deployment has not yet been completed.
+
+## 11. Live isolation verification
+
+The repository includes:
+
+```bash
+RES_URL=<RESILIENCE_URL> \
+RES_ANON=<RESILIENCE_ANON_KEY> \
+RES_EMAIL=<RESILIENCE_ACCOUNTANT_EMAIL> \
+RES_PASSWORD=<RESILIENCE_ACCOUNTANT_PASSWORD> \
+ASH_URL=<ASHELITE_URL> \
+ASH_ANON=<ASHELITE_ANON_KEY> \
+ASH_EMAIL=<ASHELITE_ACCOUNTANT_EMAIL> \
+ASH_PASSWORD=<ASHELITE_ACCOUNTANT_PASSWORD> \
+npm run verify:isolation
+```
+
+The verification script checks:
+
+- Each accountant can authenticate with the correct Supabase project.
+- A session from one project cannot access the other company's database.
+- Anonymous users cannot read financial records.
+- The documents storage bucket is not publicly accessible.
+
+This test requires both accountant accounts and live project credentials.
+
+It has not yet been run.
+
+## 12. Backup and recovery
+
+The project includes:
+
+```text
+scripts/backup.sh
+scripts/restore-test.sh
+```
+
+The backup process uses PostgreSQL tools.
+
+Both Supabase projects currently use the Free Plan. Scheduled backups and Point-in-Time Recovery are not available under the current plan.
+
+A separate backup and recovery arrangement must be established before production use.
+
+See [docs/BACKUP_RECOVERY.md](docs/BACKUP_RECOVERY.md).
+
+## 13. Accountant workflow
+
+The intended workflow is:
+
+1. Configure company details.
+2. Set up accounts and cost centres.
+3. Configure FX rates and bank accounts.
+4. Enter opening balances.
+5. Record invoices, bills, receipts and payments.
+6. Import and reconcile bank statements.
+7. Record assets and monthly depreciation.
+8. Process payroll.
+9. Lock completed financial periods.
+10. Export reports for management.
+
+## 14. Important limitations
+
+- PAYE and SSNIT statutory values in the seed files are unverified placeholders.
+- The application does not file statutory returns or make payments.
+- Issued invoices and bills do not yet have a dedicated void workflow. Use a reversal journal and a replacement document where appropriate.
+- Live company isolation verification has not been completed.
+- Production deployment has not been completed.
+- Accountant accounts have not been created.
+- SMTP is not configured.
+- Backup restoration has not yet been tested against production databases.
+
+Review the documentation in `docs/` before production use.
+
+## 15. Documentation
+
+| Document | Description |
+|---|---|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Application architecture |
+| [DATABASE.md](docs/DATABASE.md) | Database design and migrations |
+| [SECURITY.md](docs/SECURITY.md) | Security configuration |
+| [PAYROLL.md](docs/PAYROLL.md) | Payroll implementation |
+| [REPORTS.md](docs/REPORTS.md) | Financial reports |
+| [BACKUP_RECOVERY.md](docs/BACKUP_RECOVERY.md) | Backup and recovery |
+| [STATUS.md](docs/STATUS.md) | Implementation and verification status |
