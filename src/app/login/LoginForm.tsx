@@ -24,6 +24,9 @@ export default function LoginForm() {
       </label>
       {err && <div className="alert err" role="alert">{err}</div>}
       <button className="btn" disabled={busy}>{busy ? 'Signing in' : 'Sign in'}</button>
+      <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+        <a href="/forgot-password">Forgot your password?</a>
+      </p>
       <p className="muted" style={{ fontSize: 12 }}>To work in the other company, sign out first and sign in with that company&rsquo;s own credentials.</p>
     </form>
   );
