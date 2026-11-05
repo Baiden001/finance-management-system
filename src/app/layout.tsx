@@ -5,7 +5,19 @@ import { brand } from '@/lib/company';
 
 export function generateMetadata(): Metadata {
   const b = brand();
-  return { title: { default: `${b.shortName} Finance`, template: `%s | ${b.shortName} Finance` }, description: `${b.legalName} finance management system`, robots: { index: false, follow: false } };
+return {
+  title: {
+    default: `${b.shortName} Finance`,
+    template: `%s | ${b.shortName} Finance`,
+  },
+  description: `${b.legalName} finance management system`,
+  robots: { index: false, follow: false },
+  icons: {
+    icon: `/brand/favicons/${b.code}-icon.png`,
+    shortcut: `/brand/favicons/${b.code}-icon.png`,
+    apple: `/brand/favicons/${b.code}-icon.png`,
+  },
+};
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
