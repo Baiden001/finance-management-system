@@ -15,14 +15,21 @@ export default function ForgotPasswordPage() {
     setMessage('');
     setError('');
 
-    const { error } = await supabaseBrowser().auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    try {
+      const { error } = await supabaseBrowser().auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+      });
 
-    if (error) setError(error.message);
-    else setMessage('If the account exists, a password recovery email has been sent.');
-
-    setBusy(false);
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage('If the account exists, a password recovery email has been sent.');
+      }
+    } catch {
+      setError('Unable to send the recovery request. Please try again.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

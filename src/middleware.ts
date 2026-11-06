@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 
 type CookieToSet = { name: string; value: string; options?: Record<string, unknown> };
 
-const PUBLIC = ['/login', '/forgot-password', '/reset-password', '/api/health'];
+const PUBLIC = ['/login', '/forgot-password', '/reset-password', '/auth/callback', '/api/health'];
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req });
