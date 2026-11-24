@@ -5,7 +5,7 @@
 | Authentication | Supabase Auth, email + password, signups disabled, 12+ char policy; accountant created by admin script only |
 | MFA | TOTP enrolment/verification page; `REQUIRE_MFA=true` forces AAL2 for every route (middleware) and for payroll exports (route handlers). Enforcement is application-level, not RLS-level |
 | Sessions | httpOnly cookies via `@supabase/ssr`; refresh-token rotation (config); explicit logout confirmation |
-| Authorization | Server-side: middleware + layout check + `is_accountant()` in every RLS policy; export routes call `requireAccountant` |
+| Authorization | Server-side: middleware + layout check + `is_accountant()` in every RLS policy; export routes call `requireAccountant` / `requireRole`. A view-only `ceo` role (`0008_roles.sql`) gets SELECT-only `ceo_read` policies on financial tables, never on payroll, employees, audit log, attachments or bank statements; middleware limits the CEO to `/dashboard`, `/reports` and `/api/export` (non-payroll reports) |
 | Isolation | Separate projects; binding guard compares DB `company_code` to deployment; admin scripts refuse mismatches |
 | RLS | Enabled on every table; unit test fails if a created table is not secured; DB tests prove outsiders and `anon` get nothing |
 | Function exposure | EXECUTE revoked from PUBLIC/anon on all functions; `audit_event` requires an accountant |

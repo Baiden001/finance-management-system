@@ -17,7 +17,7 @@ Each company has its own database, Auth users, storage, secrets, audit records a
 
 There is no `company_id` in the application database. The accountant uses separate credentials for each company and must sign out before accessing the other deployment.
 
-Management does not receive application accounts. The accountant exports PDF, XLSX and CSV reports for management.
+Each company can also have a view-only **CEO** account (see section 7). The CEO sees the dashboard and non-payroll reports only, and cannot change anything. The accountant can still export PDF, XLSX and CSV reports for management.
 
 Financial statements support summary, grouped and detailed views with comparative periods. See [docs/REPORTS.md](docs/REPORTS.md).
 
@@ -169,6 +169,35 @@ After the first sign-in, enrol an authenticator app through:
 ```text
 /security/mfa
 ```
+
+### Ash Elite accountant (example)
+
+Apply migrations first (`npm run db:apply`, which skips migrations already applied), then run from your own machine:
+
+```bash
+SUPABASE_URL=https://yyqzrctwbgqxhapzattj.supabase.co \
+SUPABASE_SERVICE_ROLE_KEY=<ASHELITE_SERVICE_ROLE_KEY> \
+ACCOUNTANT_EMAIL=<accountant email> ACCOUNTANT_PASSWORD='<unique 12+ char password>' \
+npm run admin:create -- ashelite "Accountant Full Name"
+```
+
+### CEO accounts (view-only)
+
+Add `ceo` as the third argument to create a CEO login for one company. The CEO needs a separate account for each company:
+
+```bash
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... ACCOUNTANT_EMAIL=<ceo email> ACCOUNTANT_PASSWORD='...' \
+npm run admin:create -- ashelite "CEO Full Name" ceo
+```
+
+| | Accountant | CEO |
+|---|---|---|
+| Dashboard | Yes, with quick actions | Yes, view only |
+| Reports and exports | All reports | Financial statements, ledger, receivables/payables aging, assets, budgets, tax and operations reports. No payroll or bank reconciliation reports |
+| Transactions, bank, receivables, payables, operations, payroll, documents, audit, setup, settings | Yes | No (redirected to the dashboard) |
+| Create, edit or delete anything | Yes | No. The database enforces this through RLS (`0008_roles.sql`) |
+
+The CEO also signs in with MFA when `REQUIRE_MFA=true`. To remove access, set the profile's `role` to `disabled`.
 
 ## 8. Authentication and security
 

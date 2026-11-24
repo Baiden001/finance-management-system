@@ -127,3 +127,25 @@ describe('menu icons', () => {
     for (const [k, v] of Object.entries(ICONS)) { expect(v, k).not.toMatch(/<script|on\w+=|href=/i); expect(v.replace(/<(path|circle|rect)\b[^>]*\/>/g, '')).toBe(''); }
   });
 });
+
+describe('CEO role (view-only)', () => {
+  it('sees only the dashboard and reports in navigation, for both companies', async () => {
+    const { navFor } = await import('../../src/lib/roles');
+    for (const b of Object.values(BRANDS)) {
+      expect(navFor('ceo', b.nav).map((n) => n.href)).toEqual(['/dashboard', '/reports']);
+      expect(navFor('accountant', b.nav)).toEqual(b.nav);
+    }
+  });
+  it('is kept away from accountant pages and APIs', async () => {
+    const { ceoMayOpen } = await import('../../src/lib/roles');
+    for (const p of ['/dashboard', '/reports', '/api/export']) expect(ceoMayOpen(p), p).toBe(true);
+    for (const p of ['/journals', '/payroll', '/payroll/runs/1', '/audit', '/settings', '/setup', '/bank', '/documents', '/operations/production', '/api/payslip', '/api/doc', '/dashboards']) expect(ceoMayOpen(p), p).toBe(false);
+  });
+  it('gets no payroll or bank-reconciliation reports; the accountant gets all', async () => {
+    const { reportAllowed } = await import('../../src/lib/roles');
+    const ceo = REPORTS.filter((r) => reportAllowed('ceo', r)).map((r) => r.key);
+    expect(ceo).toContain('income_statement'); expect(ceo).toContain('inventory_valuation');
+    expect(ceo.some((k) => k.startsWith('payroll_'))).toBe(false); expect(ceo).not.toContain('bank_reconciliation');
+    expect(REPORTS.every((r) => reportAllowed('accountant', r))).toBe(true);
+  });
+});

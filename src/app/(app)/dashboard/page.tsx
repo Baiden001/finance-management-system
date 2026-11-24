@@ -12,6 +12,8 @@ const sum = (rows: { amount: number | string }[] | null) => (rows ?? []).reduce(
 export default async function Dashboard() {
   const sb = await supabaseServer();
   const now = new Date(); const y = now.getUTCFullYear(); const today = now.toISOString().slice(0, 10);
+  const { data: role } = await sb.rpc('app_role');
+  const ceo = role === 'ceo';
   const { data: cs } = await sb.from('company_settings').select('base_currency').limit(1).single();
   const cur = cs?.base_currency ?? 'GHS';
   const months = Array.from({ length: 6 }, (_, i) => { const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5 + i, 1)); return { label: d.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }), from: d.toISOString().slice(0, 10), to: new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).toISOString().slice(0, 10) }; });
@@ -42,13 +44,14 @@ export default async function Dashboard() {
         <div className="card kpi"><div className="label">Cash and bank</div><div className="value">{money(bank, cur)}</div></div>
         <div className="card kpi"><div className="label">Total assets</div><div className="value">{money(totalAssets, cur)}</div></div>
       </div>
-      {empty && <div className="alert warn">No journals have been posted yet. Start with <Link href="/journals">Transactions</Link>, or record opening balances.</div>}
+      {empty && ceo && <div className="alert warn">No journals have been posted yet. Figures will appear once the accountant records transactions.</div>}
+      {empty && !ceo && <div className="alert warn">No journals have been posted yet. Start with <Link href="/journals">Transactions</Link>, or record opening balances.</div>}
       <div className="grid two">
         <div className="card"><h2>Revenue vs expenses, last 6 months</h2><BarChart labels={months.map((m) => m.label)} nameA="Revenue" nameB="Expenses" a={byMonth.map((r) => sum(r.filter((x) => x.section === 'income')))} b={byMonth.map((r) => sum(r.filter((x) => x.section === 'expense')))} /></div>
         <div className="card"><h2>Expense breakdown</h2>{shown.length ? <Donut items={shown} total={money(expenses, '')} /> : <p className="muted">No expenses posted this year.</p>}</div>
       </div>
       <div className="card">
-        <div className="spread" style={{ marginBottom: 8 }}><h2 style={{ margin: 0 }}>Recent transactions</h2><span className="row"><Link className="btn alt sm" href="/journals">New journal</Link><Link className="btn alt sm" href="/receivables">Receivables</Link><Link className="btn alt sm" href="/bank">Reconcile bank</Link><Link className="btn alt sm" href="/reports">Generate report</Link></span></div>
+        <div className="spread" style={{ marginBottom: 8 }}><h2 style={{ margin: 0 }}>Recent transactions</h2>{ceo ? <Link className="btn alt sm" href="/reports">View reports</Link> : <span className="row"><Link className="btn alt sm" href="/journals">New journal</Link><Link className="btn alt sm" href="/receivables">Receivables</Link><Link className="btn alt sm" href="/bank">Reconcile bank</Link><Link className="btn alt sm" href="/reports">Generate report</Link></span>}</div>
         <DataTable cols={[{ key: 'entry_date', label: 'Date', format: 'date' }, { key: 'journal_no', label: 'JE #' }, { key: 'description', label: 'Description' }, { key: 'source_type', label: 'Source' }, { key: 'status', label: 'Status', format: 'pill' }]} rows={(recent.data ?? []) as Record<string, unknown>[]} empty="No transactions yet." />
       </div>
     </div>

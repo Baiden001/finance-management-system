@@ -4,6 +4,7 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
 import { REPORTS, rpcArgs, type ParamName, type ReportDef } from '@/lib/reports';
 import { isoDate, money, num, yearEnd, yearStart } from '@/lib/format';
 import type { Opt } from './types';
+import { reportAllowed, type Role } from '@/lib/roles';
 
 const LABEL: Record<ParamName, string> = { from: 'From', to: 'To', as_of: 'As of', run: 'Payroll run', year: 'Year', month: 'Month', account: 'Account', bank: 'Bank account', statement_balance: 'Statement balance', method: 'Method', level: 'Level of detail', compare_as_of: 'Compare with (as of)', compare_from: 'Compare from', compare_to: 'Compare to' };
 const LEVELS: Opt[] = [{ value: '1', label: 'Level 1 - Summary' }, { value: '2', label: 'Level 2 - Grouped' }, { value: '3', label: 'Level 3 - Detailed' }];
@@ -11,8 +12,8 @@ const METHODS: Opt[] = [{ value: 'indirect', label: 'Indirect (from profit)' }, 
 const shiftYear = (d: string, n: number) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCFullYear(x.getUTCFullYear() + n); if (x.getUTCMonth() !== Number(d.slice(5, 7)) - 1) x.setUTCDate(0); return x.toISOString().slice(0, 10); };
 const isNum = (t?: string) => t === 'money' || t === 'number' || t === 'pct';
 
-export default function ReportsClient({ company, mfaNote }: { company: 'resilience' | 'ashelite'; mfaNote: boolean }) {
-  const defs = useMemo(() => REPORTS.filter((r) => !r.company || r.company === company), [company]);
+export default function ReportsClient({ company, role, mfaNote }: { company: 'resilience' | 'ashelite'; role: Role; mfaNote: boolean }) {
+  const defs = useMemo(() => REPORTS.filter((r) => (!r.company || r.company === company) && reportAllowed(role, r)), [company, role]);
   const groups = [...new Set(defs.map((r) => r.group))];
   const now = new Date();
   const [key, setKey] = useState(defs[0].key); const def = (defs.find((r) => r.key === key) ?? defs[0]) as ReportDef;

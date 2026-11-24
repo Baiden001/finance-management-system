@@ -16,7 +16,7 @@ export default function LoginPage() {
           <p style={{ fontSize: 18, margin: '0 0 6px' }}>{b.tagline}</p>
           <p>{b.loginSubtitle}</p>
         </div>
-        <p style={{ fontSize: 12, opacity: .85, position: "relative", zIndex: 2 }}>Authorised accountant access only. Activity is audited.</p>
+        <p style={{ fontSize: 12, opacity: .85, position: "relative", zIndex: 2 }}>Authorised accountant and CEO access only. Activity is audited.</p>
       </section>
       <section className="pane">
         <div className="box">

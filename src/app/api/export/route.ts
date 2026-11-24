@@ -4,7 +4,8 @@ import { supabaseServer } from '@/lib/supabase-server';
 import { brand, companyCode } from '@/lib/company';
 import { findReport, rpcArgs } from '@/lib/reports';
 import { toCsv, toPdf, toXlsx, type ExportMeta } from '@/lib/export';
-import { mfaSatisfied, rateLimit, requireAccountant } from '@/lib/guards';
+import { mfaSatisfied, rateLimit, requireRole } from '@/lib/guards';
+import { reportAllowed, type Role } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -13,13 +14,14 @@ const MIME = { pdf: 'application/pdf', xlsx: 'application/vnd.openxmlformats-off
 
 export async function GET(req: NextRequest) {
   const supabase = await supabaseServer();
-  let uid: string;
-  try { uid = await requireAccountant(supabase); } catch (e) { return e as Response; }
+  let uid: string; let role: Role;
+  try { ({ uid, role } = await requireRole(supabase, ['accountant', 'ceo'])); } catch (e) { return e as Response; }
   if (!rateLimit(`export:${uid}`, 30, 60_000)) return new NextResponse('Too many exports; wait a minute.', { status: 429 });
   const sp = req.nextUrl.searchParams;
   const def = findReport(sp.get('report') ?? '');
   const format = (sp.get('format') ?? 'pdf') as keyof typeof MIME;
   if (!def || (def.company && def.company !== companyCode()) || !(format in MIME)) return new NextResponse('Unknown report or format', { status: 400 });
+  if (!reportAllowed(role, def)) return new NextResponse('This report is available to the accountant only', { status: 403 });
   if (def.sensitive && !(await mfaSatisfied(supabase))) return new NextResponse('Multi-factor authentication required for payroll reports', { status: 403 });
   const params = Object.fromEntries(sp.entries());
   let args: Record<string, string | number | null>;

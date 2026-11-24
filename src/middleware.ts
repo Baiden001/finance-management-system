@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { ceoMayOpen } from '@/lib/roles';
 
 type CookieToSet = { name: string; value: string; options?: Record<string, unknown> };
 
@@ -20,6 +21,14 @@ export async function middleware(req: NextRequest) {
   if (user && process.env.REQUIRE_MFA === 'true' && !PUBLIC.includes(path) && path !== '/security/mfa' && path !== '/logout') {
     const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     if (data?.currentLevel !== 'aal2') { const u = req.nextUrl.clone(); u.pathname = '/security/mfa'; return NextResponse.redirect(u); }
+  }
+  // The CEO is view-only: keep them on the dashboard and reports. The database enforces the same limits via RLS.
+  if (user && !PUBLIC.includes(path) && path !== '/security/mfa' && path !== '/logout' && path !== '/' && !ceoMayOpen(path)) {
+    const { data: role } = await supabase.rpc('app_role');
+    if (role === 'ceo') {
+      if (path.startsWith('/api/')) return new NextResponse('Forbidden', { status: 403 });
+      const u = req.nextUrl.clone(); u.pathname = '/dashboard'; u.search = ''; return NextResponse.redirect(u);
+    }
   }
   return res;
 }
